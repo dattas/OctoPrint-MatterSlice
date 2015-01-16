@@ -14,17 +14,17 @@ def package_data_dirs(source, sub_folders):
 	return dirs
 
 def params():
-	name = "OctoPrint-Slic3r"
+	name = "OctoPrint-MatterSlice"
 	version = "0.1"
 
-	description = "Adds support for slicing via Slic3r from within OctoPrint"
-	author = "Gina Häußge"
-	author_email = "osd@foosel.net"
+	description = "Adds support for slicing via MatterSlice from within OctoPrint"
+	author = "Dattas Moonchaser"
+	author_email = "dattasmoon@gmail.com"
 	url = "http://octoprint.org"
 	license = "AGPLv3"
 
-	packages = ["octoprint_slic3r"]
-	package_data = {"octoprint_slic3r": package_data_dirs('octoprint_slic3r', ['static', 'templates'])}
+	packages = ["octoprint_matterslice"]
+	package_data = {"octoprint_matterslice": package_data_dirs('octoprint_matterslice', ['static', 'templates'])}
 
 	include_package_data = True
 	zip_safe = False
@@ -32,7 +32,7 @@ def params():
 
 	entry_points = {
 		"octoprint.plugin": [
-			"slic3r = octoprint_slic3r"
+			"matterslice = octoprint_matterslice"
 		]
 	}
 
