@@ -1,7 +1,7 @@
 # coding=utf-8
 from __future__ import absolute_import
 
-__author__ = "Gina Häußge <osd@foosel.net>"
+__author__ = "Gina Häußge <osd@foosel.net>, Dattas Moonchaser <dattasmoon@gmail.com>"
 __license__ = 'GNU Affero General Public License http://www.gnu.org/licenses/agpl.html'
 __copyright__ = "Copyright (C) 2014 The OctoPrint Project - Released under terms of the AGPLv3 License"
 
@@ -9,44 +9,36 @@ from . import s
 
 import logging
 import re
+class BedShapes(object):
+	CIRCULAR = "circular"
 
 class GcodeFlavors(object):
 	REPRAP = "reprap"
-	TEACUP = "teacup"
-	MAKERWARE = "makerware"
-	SAILFISH = "sailfish"
+	ULTICODE = "ulticode"
+	MAKERBOT = "makerbot"
+	BFB = "bfb"
 	MACH3 = "mach3"
-	NO_EXTRUSION = "no-extrusion"
 
 class FillPatterns(object):
-	ARCHIMEDEANCHORDS = "archimedeanchords"
-	RECTILINEAR = "rectilinear"
-	FLOWSNAKE = "flowsnake"
-	OCTAGRAMSPIRAL = "octagramspiral"
-	HILBERTCURVE = "hilbertcurve"
 	LINE = "line"
 	CONCENTRIC = "concentric"
-	HONEYCOMB = "honeycomb"
-	HONEYCOMB_3D = "3dhoneycomb"
+	TRIANGLES = "triangles"
+	GRID = "grid"
+	RECTILINEAR = "rectilinear"
 
 class SupportPatterns(object):
-	HONEYCOMB = "honeycomb"
-	RECTILINEAR = "rectilinear"
-	RECTILINEAR_GRID = "rectilinear-grid"
-
-class SeamPositions(object):
-	RANDOM = "random"
-	ALIGNED = "aligned"
-	NEAREST = "nearest"
+	LINES = "lines"
+	GRID = "grid"
 
 defaults = dict(
+    bed_shape=BedShapes.CIRCULAR,
     nozzle_diameter=0.5,
     print_center=(100, 100), # TODO
     z_offset=0.0,
     gcode_flavor=GcodeFlavors.REPRAP,
     use_relative_e_distances=False,
     use_firmware_retraction=False,
-    gcode_arcs=False,
+    gcode_arcs=0,
     gcode_comments=False,
     vibration_limit=0,
 
@@ -84,15 +76,14 @@ defaults = dict(
     top_solid_layers=3,
     bottom_solid_layers=3,
     solid_layers=3,
-    fill_density="40%",
+    fill_density=0.2,
     fill_angle=45,
-    fill_pattern=FillPatterns.HONEYCOMB,
+    fill_pattern=FillPatterns.TRIANGLES,
     solid_fill_pattern=FillPatterns.RECTILINEAR,
     start_gcode=None,
     end_gcode=None,
     layer_gcode=None,
     toolchange_gcode=None,
-    seam_position=SeamPositions.ALIGNED,
     external_perimeters_first=False,
     spiral_vase=False,
     only_retract_when_crossing_perimeters=False,
@@ -105,37 +96,45 @@ defaults = dict(
     thin_walls=True,
     overhangs=True,
 
-    support_material=False,
-    support_material_threshold=0,
-    support_material_pattern=SupportPatterns.HONEYCOMB,
-    support_material_spacing=2.5,
-    support_material_angle=0,
-    support_material_interface_layers=3,
-    support_material_interface_spacing=0,
+    support_material = 0,
+    support_material_angle = 0,
+    support_material_create_internal_support = 0,
+    support_material_infill_angle = 45,
+    support_material_interface_layers = 0,
+    support_material_interface_spacing = 0,
+    support_material_pattern = FillPatterns.RECTILINEAR,
+    support_material_spacing = 2.5,
+    support_material_threshold = 0,
+    support_material_xy_distance = 0.7,
+    support_material_z_distance = 0.15,
+    support_material_z_gap_layers = 1,
+    support_type = SupportPatterns.LINES,
+    
     raft_layers=0,
     support_material_enforce_layers=0,
     dont_support_bridges=True,
 
-    retract_length=1,
-    retract_speed=30,
-    retract_restart_extra=0,
-    retract_before_travel=2,
-    retract_lift=0,
-    retract_layer_change=True,
-    #wipe=False,
+    retract_before_travel = 5,
+    retract_layer_change = 0,
+    retract_length = 6.5,
+    retract_length_tool_change = 10,
+    retract_lift = 0.3,
+    retract_restart_extra = 0.1,
+    retract_speed = 110,
+    wipe=0,
 
     retract_length_toolchange=1,
     retract_restart_extra_toolchange=1,
 
-    cooling=False,
-    min_fan_speed="35",
-    max_fan_speed="100",
-    bridge_fan_speed="100",
+    cooling=1,
+    min_fan_speed=35,
+    max_fan_speed=100,
+    bridge_fan_speed=100,
     fan_below_layer_time=60,
     slowdown_below_layer_time=30,
     min_print_speed=10,
     disable_fan_first_layers=1,
-    fan_always_on=False,
+    fan_always_on=0,
 
     skirts=1,
     skirt_distance=6,
@@ -143,21 +142,14 @@ defaults = dict(
     min_skirt_length=0,
     brim_width=0,
 
-    scale=1, # TODO
-    rotate=0, # TODO
-    duplicate=1,
-    duplicate_grid=(1,1), # TODO ?!
-    duplicate_distance=6,
-    xy_size_compensation=0,
-
-    complete_objects=False,
+    complete_objects=0,
     extruder_clearance_radius=20,
     extruder_clearance_height=20,
 
     notes="",
     resolution=0,
 
-    extrusion_width="100%",
+    extrusion_width=0.6,
     first_layer_extrusion_width="100%",
     perimeter_extrusion_width="100%",
     external_perimeter_extrusion_width="100%",
@@ -190,7 +182,7 @@ class Profile(object):
 	regex_strip_comments = re.compile(";.*$", flags=re.MULTILINE)
 
 	@classmethod
-	def from_slic3r_ini(cls, path):
+	def from_matterslice_ini(cls, path):
 		import os
 		if not os.path.exists(path) or not os.path.isfile(path):
 			return None
@@ -212,7 +204,8 @@ class Profile(object):
 				key, v = map(str.strip, split_line)
 
 				if not key in defaults.keys():
-					# unknown profile settings, we'll ignore that
+					# unknown profile settings, we'll log that then skip it
+					logging.getLogger("plugins.matterslice." + __name__).info("key %s is not found in the default settings" % key)
 					continue
 
 				result[key] = cls.convert_value(key, v, defaults[key])
@@ -221,7 +214,7 @@ class Profile(object):
 		return cls.merge_profile(result), display_name, description
 
 	@classmethod
-	def to_slic3r_ini(cls, profile, path, display_name=None, description=None):
+	def to_matterslice_ini(cls, profile, path, display_name=None, description=None):
 		with open(path, "w") as f:
 			if display_name is not None:
 				f.write("# Name: " + display_name + "\n")
@@ -269,7 +262,7 @@ class Profile(object):
 			else:
 				return str(value)
 		except:
-			logging.getLogger("plugins.slic3r." + __name__).exception("Got an exception while trying to convert the value for %s from an imported profile, using default" % key)
+			logging.getLogger("plugins.matterslice." + __name__).exception("Got an exception while trying to convert the value for %s from an imported profile, using default" % key)
 			return default
 
 	@classmethod

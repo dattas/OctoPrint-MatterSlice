@@ -1,5 +1,5 @@
 $(function() {
-    function Slic3rViewModel(parameters) {
+    function mattersliceViewModel(parameters) {
         var self = this;
 
         self.loginState = parameters[0];
@@ -17,11 +17,11 @@ $(function() {
         self.profileDescription = ko.observable();
         self.profileAllowOverwrite = ko.observable(true);
 
-        self.uploadElement = $("#settings-slic3r-import");
-        self.uploadButton = $("#settings-slic3r-import-start");
+        self.uploadElement = $("#settings-matterslice-import");
+        self.uploadButton = $("#settings-matterslice-import-start");
 
         self.profiles = new ItemListHelper(
-            "plugin_slic3r_profiles",
+            "plugin_matterslice_profiles",
             {
                 "id": function(a, b) {
                     if (a["key"].toLocaleLowerCase() < b["key"].toLocaleLowerCase()) return -1;
@@ -100,7 +100,7 @@ $(function() {
                 self.profileDescription(undefined);
                 self.profileAllowOverwrite(true);
 
-                $("#settings-plugin-slic3r-import").modal("hide");
+                $("#settings-plugin-matterslice-import").modal("hide");
                 self.requestData();
                 self.slicingViewModel.requestData();
             }
@@ -153,12 +153,12 @@ $(function() {
         };
 
         self.showImportProfileDialog = function() {
-            $("#settings_plugin_slic3r_import").modal("show");
+            $("#settings_plugin_matterslice_import").modal("show");
         };
 
         self.requestData = function() {
             $.ajax({
-                url: API_BASEURL + "slicing/slic3r/profiles",
+                url: API_BASEURL + "slicing/matterslice/profiles",
                 type: "GET",
                 dataType: "json",
                 success: self.fromResponse
@@ -187,5 +187,5 @@ $(function() {
     }
 
     // view model class, parameters for constructor, container to bind to
-    ADDITIONAL_VIEWMODELS.push([Slic3rViewModel, ["loginStateViewModel", "settingsViewModel", "slicingViewModel"], document.getElementById("settings_plugin_slic3r_dialog")]);
+    ADDITIONAL_VIEWMODELS.push([mattersliceViewModel, ["loginStateViewModel", "settingsViewModel", "slicingViewModel"], document.getElementById("settings_plugin_matterslice_dialog")]);
 });

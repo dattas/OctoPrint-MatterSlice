@@ -1,17 +1,23 @@
-<div id="settings_plugin_slic3r_dialog" data-bind="allowBindings: true">
+<div id="settings_plugin_matterslice_dialog" data-bind="allowBindings: true">
     <h4>{{ _('General') }}</h4>
 
     <form class="form-horizontal">
         <div class="control-group">
-            <label class="control-label" for="settings-slic3r-path">{{ _('Path to Slic3r executable') }}</label>
+            <label class="control-label" for="settings-mono-path">{{ _('Path to Mono executable') }}</label>
             <div class="controls">
-                <input type="text" class="input-block-level" data-bind="value: settings.plugins.slic3r.slic3r_engine">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.matterslice.mono_bin">
+            </div>
+        </div>
+        <div class="control-group">
+            <label class="control-label" for="settings-matterslice-path">{{ _('Path to matterslice executable') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.matterslice.matterslice_engine">
             </div>
         </div>
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.slic3r.debug_logging"> {{ _('Log the output of Slic3r to plugin_slic3r_engine.log') }}
+                    <input type="checkbox" data-bind="checked: settings.plugins.matterslice.debug_logging"> {{ _('Log the output of matterslice to plugin_matterslice_engine.log') }}
                 </label>
             </div>
         </div>
@@ -25,16 +31,16 @@
     <table class="table table-striped table-hover table-condensed table-hover">
         <thead>
         <tr>
-            <th class="settings_plugin_slic3r_profiles_key">{{ _('Identifier') }}</th>
-            <th class="settings_plugin_slic3r_profiles_name">{{ _('Name') }}</th>
-            <th class="settings_plugin_slic3r_profiles_actions">{{ _('Actions') }}</th>
+            <th class="settings_plugin_matterslice_profiles_key">{{ _('Identifier') }}</th>
+            <th class="settings_plugin_matterslice_profiles_name">{{ _('Name') }}</th>
+            <th class="settings_plugin_matterslice_profiles_actions">{{ _('Actions') }}</th>
         </tr>
         </thead>
         <tbody data-bind="foreach: profiles.paginatedItems">
             <tr data-bind="attr: {title: description}">
-                <td class="settings_plugin_slic3r_profiles_key"><span class="icon-star" data-bind="invisible: !isdefault()"></span> <span data-bind="text: key"></span></td>
-                <td class="settings_plugin_slic3r_profiles_name" data-bind="text: name"></td>
-                <td class="settings_plugin_slic3r_profiles_actions">
+                <td class="settings_plugin_matterslice_profiles_key"><span class="icon-star" data-bind="invisible: !isdefault()"></span> <span data-bind="text: key"></span></td>
+                <td class="settings_plugin_matterslice_profiles_name" data-bind="text: name"></td>
+                <td class="settings_plugin_matterslice_profiles_actions">
                     <a href="#" class="icon-star" title="{{ _('Make default') }}" data-bind="enable: !isdefault(), css: {disabled: isdefault()}, click: function() { if (!$data.isdefault()) { $root.makeProfileDefault($data); } }"></a>&nbsp;|&nbsp;<a href="#" class="icon-trash" title="{{ _('Delete Profile') }}" data-bind="enable: !isdefault(), css: {disabled: isdefault()}, click: function() { if (!$data.isdefault()) { $root.removeProfile($data); } }"></a>
                 </td>
             </tr>
@@ -54,10 +60,10 @@
 
     <button class="btn pull-right" data-bind="click: function() { $root.showImportProfileDialog() }">{{ _('Import Profile...') }}</button>
 
-    <div id="settings_plugin_slic3r_import" class="modal hide fade">
+    <div id="settings_plugin_matterslice_import" class="modal hide fade">
         <div class="modal-header">
             <a href="#" class="close" data-dismiss="modal" aria-hidden="true">&times;</a>
-            <h3>{{ _('Import Existing Slic3r Profile') }}</h3>
+            <h3>{{ _('Import Existing matterslice Profile') }}</h3>
         </div>
         <div class="modal-body">
             <form class="form-horizontal">
@@ -67,7 +73,7 @@
                         <div class="input-prepend">
                     <span class="btn fileinput-button">
                         <span>{{ _('Browse...') }}</span>
-                        <input id="settings-slic3r-import" type="file" name="file" data-url="{{ url_for("plugin.slic3r.importSlic3rProfile") }}">
+                        <input id="settings-matterslice-import" type="file" name="file" data-url="{{ url_for("plugin.matterslice.importMattersliceProfile") }}">
                     </span>
                             <span class="add-on" data-bind="text: fileName"></span>
                         </div>
@@ -102,7 +108,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn" data-dismiss="modal" aria-hidden="true">{{ _('Abort') }}</button>
-            <button class="btn btn-primary" id="settings-slic3r-import-start">{{ _('Confirm') }}</button>
+            <button class="btn btn-primary" id="settings-matterslice-import-start">{{ _('Confirm') }}</button>
         </div>
     </div>
 </div>

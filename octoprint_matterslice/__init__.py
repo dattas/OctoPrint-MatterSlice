@@ -1,7 +1,7 @@
 # coding=utf-8
 from __future__ import absolute_import
 
-__author__ = "Gina Häußge <osd@foosel.net>"
+__author__ = "Gina Häußge <osd@foosel.net>, Dattas Moonchaser <dattasmoon@gmail.com>"
 __license__ = "GNU Affero General Public License http://www.gnu.org/licenses/agpl.html"
 __copyright__ = "Copyright (C) 2014 The OctoPrint Project - Released under terms of the AGPLv3 License"
 
@@ -17,18 +17,19 @@ import octoprint.slicing
 import octoprint.settings
 
 default_settings = {
-	"slic3r_engine": None,
+	"mono_bin": "/usr/bin/mono",
+	"matterslice_engine": None,
 	"default_profile": None,
 	"debug_logging": False
 }
-s = octoprint.plugin.plugin_settings("slic3r", defaults=default_settings)
+s = octoprint.plugin.plugin_settings("matterslice", defaults=default_settings)
 
 from .profile import Profile
 
-blueprint = flask.Blueprint("plugin.slic3r", __name__)
+blueprint = flask.Blueprint("plugin.matterslice", __name__)
 
 @blueprint.route("/import", methods=["POST"])
-def importSlic3rProfile():
+def importMattersliceProfile():
 	import datetime
 	import tempfile
 
@@ -41,9 +42,9 @@ def importSlic3rProfile():
 	if input_upload_name in flask.request.values and input_upload_path in flask.request.values:
 		filename = flask.request.values[input_upload_name]
 		try:
-			profile_dict, imported_name, imported_description = Profile.from_slic3r_ini(flask.request.values[input_upload_path])
+			profile_dict, imported_name, imported_description = Profile.from_matterslice_ini(flask.request.values[input_upload_path])
 		except Exception as e:
-			return flask.make_response("Something went wrong while converting imported profile: {message}".format(e.message), 500)
+			return flask.make_response("Something went wrong while converting imported profile: {0}".format(e.message), 500)
 
 	elif input_name in flask.request.files:
 		temp_file = tempfile.NamedTemporaryFile("wb", delete=False)
@@ -51,9 +52,9 @@ def importSlic3rProfile():
 			temp_file.close()
 			upload = flask.request.files[input_name]
 			upload.save(temp_file.name)
-			profile_dict, imported_name, imported_description = Profile.from_slic3r_ini(temp_file.name)
+			profile_dict, imported_name, imported_description = Profile.from_matterslice_ini(temp_file.name)
 		except Exception as e:
-			return flask.make_response("Something went wrong while converting imported profile: {message}".format(e.message), 500)
+			return flask.make_response("Something went wrong while converting imported profile: {0}".format(e.message), 500)
 		finally:
 			os.remove(temp_file)
 
@@ -81,7 +82,7 @@ def importSlic3rProfile():
 		from octoprint.server.api import valid_boolean_trues
 		profile_allow_overwrite = flask.request.values["allowOverwrite"] in valid_boolean_trues
 
-	slicingManager.save_profile("slic3r",
+	slicingManager.save_profile("matterslice",
 	                            profile_name,
 	                            profile_dict,
 	                            allow_overwrite=profile_allow_overwrite,
@@ -89,7 +90,7 @@ def importSlic3rProfile():
 	                            description=profile_description)
 
 	result = dict(
-		resource=flask.url_for("api.slicingGetSlicerProfile", slicer="slic3r", name=profile_name, _external=True),
+		resource=flask.url_for("api.slicingGetSlicerProfile", slicer="matterslice", name=profile_name, _external=True),
 		displayName=profile_display_name,
 		description=profile_description
 	)
@@ -98,7 +99,7 @@ def importSlic3rProfile():
 	return r
 
 
-class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
+class MatterSlicePlugin(octoprint.plugin.SlicerPlugin,
                    octoprint.plugin.SettingsPlugin,
                    octoprint.plugin.TemplatePlugin,
                    octoprint.plugin.AssetPlugin,
@@ -106,8 +107,8 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
                    octoprint.plugin.StartupPlugin):
 
 	def __init__(self):
-		self._logger = logging.getLogger("octoprint.plugins.slic3r")
-		self._slic3r_logger = logging.getLogger("octoprint.plugins.slic3r.engine")
+		self._logger = logging.getLogger("octoprint.plugins.matterslice")
+		self._slice_logger = logging.getLogger("octoprint.plugins.matterslice.engine")
 
 		# setup job tracking across threads
 		import threading
@@ -120,13 +121,13 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 
 	def on_startup(self, host, port):
 		# setup our custom logger
-		slic3r_logging_handler = logging.handlers.RotatingFileHandler(s.getPluginLogfilePath(postfix="engine"), maxBytes=2*1024*1024)
-		slic3r_logging_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
-		slic3r_logging_handler.setLevel(logging.DEBUG)
+		logging_handler = logging.handlers.RotatingFileHandler(s.getPluginLogfilePath(postfix="engine"), maxBytes=2*1024*1024)
+		logging_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+		logging_handler.setLevel(logging.DEBUG)
 
-		self._slic3r_logger.addHandler(slic3r_logging_handler)
-		self._slic3r_logger.setLevel(logging.DEBUG if s.getBoolean(["debug_logging"]) else logging.CRITICAL)
-		self._slic3r_logger.propagate = False
+		self._slice_logger.addHandler(logging_handler)
+		self._slice_logger.setLevel(logging.DEBUG if s.getBoolean(["debug_logging"]) else logging.CRITICAL)
+		self._slice_logger.propagate = False
 
 	##~~ BlueprintPlugin API
 
@@ -135,30 +136,28 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 		return blueprint
 
 	##~~ AssetPlugin API
-
-	def get_asset_folder(self):
-		import os
-		return os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
-
 	def get_assets(self):
 		return {
-			"js": ["js/slic3r.js"],
-			"less": ["less/slic3r.less"],
-			"css": ["css/slic3r.css"]
+			"js": ["js/matterslice.js"],
+			"less": ["less/matterslice.less"],
+			"css": ["css/matterslice.css"]
 		}
 
 	##~~ SettingsPlugin API
 
 	def on_settings_load(self):
 		return dict(
-			slic3r_engine=s.get(["slic3r_engine"]),
+			mono_bin=s.get(["mono_bin"]),
+			matterslice_engine=s.get(["matterslice_engine"]),
 			default_profile=s.get(["default_profile"]),
 			debug_logging=s.getBoolean(["debug_logging"])
 		)
 
 	def on_settings_save(self, data):
-		if "slic3r_engine" in data and data["slic3r_engine"]:
-			s.set(["slic3r_engine"], data["slic3r_engine"])
+		if "mono_bin" in data and data["mono_bin"]:
+			s.set(["mono_bin"], data["mono_bin"])
+		if "matterslice_engine" in data and data["matterslice_engine"]:
+			s.set(["matterslice_engine"], data["matterslice_engine"])
 		if "default_profile" in data and data["default_profile"]:
 			s.set(["default_profile"], data["default_profile"])
 		if "debug_logging" in data:
@@ -166,32 +165,22 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 			new_debug_logging = data["debug_logging"] in octoprint.settings.valid_boolean_trues
 			if old_debug_logging != new_debug_logging:
 				if new_debug_logging:
-					self._slic3r_logger.setLevel(logging.DEBUG)
+					self._slice_logger.setLevel(logging.DEBUG)
 				else:
-					self._slic3r_logger.setLevel(logging.CRITICAL)
+					self._slice_logger.setLevel(logging.CRITICAL)
 			s.setBoolean(["debug_logging"], new_debug_logging)
-
-	##~~ TemplatePlugin API
-
-	def get_template_vars(self):
-		return dict(
-			_settings_menu_entry="Slic3r"
-		)
-
-	def get_template_folder(self):
-		import os
-		return os.path.join(os.path.dirname(os.path.realpath(__file__)), "templates")
 
 	##~~ SlicerPlugin API
 
 	def is_slicer_configured(self):
-		slic3r = s.get(["slic3r_engine"])
-		return slic3r is not None and os.path.exists(slic3r)
+		mono_bin = s.get(["mono_bin"])
+		matterslice = s.get(["matterslice_engine"])
+		return matterslice is not None and mono_bin is not None and os.path.exists(matterslice) and os.path.exists(mono_bin)
 
 	def get_slicer_properties(self):
 		return dict(
-			type="slic3r",
-			name="Slic3r",
+			type="matterslice",
+			name="MatterSlice",
 			same_device=True,
 			progress_report=False
 		)
@@ -217,23 +206,26 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 
 		self._save_profile(path, new_profile, allow_overwrite=allow_overwrite, display_name=profile.display_name, description=profile.description)
 
-	def do_slice(self, model_path, machinecode_path=None, profile_path=None, on_progress=None, on_progress_args=None, on_progress_kwargs=None):
+	def do_slice(self, model_path, printer_profile=None, machinecode_path=None, profile_path=None, position=None, on_progress=None, on_progress_args=None, on_progress_kwargs=None):
 		if not profile_path:
 			profile_path = s.get(["default_profile"])
 		if not machinecode_path:
 			path, _ = os.path.splitext(model_path)
 			machinecode_path = path + ".gco"
 
-		self._slic3r_logger.info("### Slicing %s to %s using profile stored at %s" % (model_path, machinecode_path, profile_path))
+		self._slice_logger.info("### Slicing %s to %s using profile stored at %s" % (model_path, machinecode_path, profile_path))
 
-		executable = s.get(["slic3r_engine"])
+		executable = s.get(["matterslice_engine"])
 		if not executable:
-			return False, "Path to Slic3r is not configured "
+			return False, "Path to MatterSlicer is not properly configured "
+		mono_bin = s.get(["mono_bin"])
+		if not mono_bin:
+			return False, "Path to Mono is not properly configured "
 
 		import sarge
 
 		working_dir, _ = os.path.split(executable)
-		args = ['"%s"' % executable, '--load', '"%s"' % profile_path, '-o', '"%s"' % machinecode_path, '"%s"' % model_path]
+		args = ['"%s"' % mono_bin, '"%s"' % executable, '-c', '"%s"' % profile_path, '-o', '"%s"' % machinecode_path, '"%s"' % model_path]
 
 		command = " ".join(args)
 		self._logger.info("Running %r in %s" % (command, working_dir))
@@ -256,28 +248,28 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 
 					line_seen = True
 					if stdout_line:
-						self._slic3r_logger.debug("stdout: " + stdout_line.strip())
+						self._slice_logger.debug("stdout: " + stdout_line.strip())
 					if stderr_line:
-						self._slic3r_logger.debug("stderr: " + stderr_line.strip())
+						self._slice_logger.debug("stderr: " + stderr_line.strip())
 			finally:
 				p.close()
 
 			with self._cancelled_jobs_mutex:
 				if machinecode_path in self._cancelled_jobs:
-					self._slic3r_logger.info("### Cancelled")
+					self._slice_logger.info("### Cancelled")
 					raise octoprint.slicing.SlicingCancelled()
 
-			self._slic3r_logger.info("### Finished, returncode %d" % p.returncode)
+			self._slice_logger.info("### Finished, returncode %d" % p.returncode)
 			if p.returncode == 0:
 				return True, None
 			else:
-				self._logger.warn("Could not slice via Slic3r, got return code %r" % p.returncode)
+				self._logger.warn("Could not slice via MatterSlicer, got return code %r" % p.returncode)
 				return False, "Got returncode %r" % p.returncode
 
 		except octoprint.slicing.SlicingCancelled as e:
 			raise e
 		except:
-			self._logger.exception("Could not slice via Slic3r, got an unknown error")
+			self._logger.exception("Could not slice via MatterSlicer, got an unknown error")
 			return False, "Unknown error, please consult the log file"
 
 		finally:
@@ -288,7 +280,7 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 				if machinecode_path in self._slicing_commands:
 					del self._slicing_commands[machinecode_path]
 
-			self._slic3r_logger.info("-" * 40)
+			self._slice_logger.info("-" * 40)
 
 	def cancel_slicing(self, machinecode_path):
 		with self._slicing_commands_mutex:
@@ -299,13 +291,13 @@ class Slic3rPlugin(octoprint.plugin.SlicerPlugin,
 				self._logger.info("Cancelled slicing of %s" % machinecode_path)
 
 	def _load_profile(self, path):
-		profile, display_name, description = Profile.from_slic3r_ini(path)
+		profile, display_name, description = Profile.from_matterslice_ini(path)
 		return profile, display_name, description
 
 	def _save_profile(self, path, profile, allow_overwrite=True, display_name=None, description=None):
 		if not allow_overwrite and os.path.exists(path):
 			raise IOError("Cannot overwrite {path}".format(path=path))
-		Profile.to_slic3r_ini(profile, path, display_name=display_name, description=description)
+		Profile.to_matterslice_ini(profile, path, display_name=display_name, description=description)
 
 	def _convert_to_engine(self, profile_path):
 		profile = Profile(self._load_profile(profile_path))
@@ -324,6 +316,6 @@ def _sanitize_name(name):
 	sanitized_name = sanitized_name.replace(" ", "_")
 	return sanitized_name.lower()
 
-__plugin_name__ = "Slic3r"
+__plugin_name__ = "MatterSlice"
 __plugin_version__ = "0.1"
-__plugin_implementations__ = [Slic3rPlugin()]
+__plugin_implementations__ = [MatterSlicePlugin()]
