@@ -12,7 +12,7 @@ won't be able to satisfy its dependencies.
 Next you'll want to checkout and compile MatterSlice, please note you'll likely need to install `monodevelop` with your package manager along with `mono`
 
     git clone https://github.com/MatterHackers/MatterSlice.git
-    cd ~/MatterSlice
+    cd MatterSlice
     mozroots --import --sync
     mdtool build -c:Release MatterSlice.sln
 
